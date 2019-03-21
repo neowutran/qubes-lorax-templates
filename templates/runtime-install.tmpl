@@ -38,8 +38,8 @@ installpkg glibc-all-langpacks
 %if basearch == "x86_64":
     installpkg grub2-tools-efi
     installpkg efibootmgr
-    installpkg shim-x64 grub2-efi-x64-cdboot
-    installpkg shim-ia32 grub2-efi-ia32-cdboot
+    installpkg shim-x64 grub2-efi-x64-cdboot grub2-efi-x64-modules
+    installpkg shim-ia32 grub2-efi-ia32-cdboot grub2-efi-ia32-modules
 %endif
 %if basearch in ("i386", "x86_64"):
     installpkg biosdevname memtest86+ syslinux

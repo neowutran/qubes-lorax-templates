@@ -28,7 +28,6 @@ install ${SYSLINUXDIR}/mboot.c32 ${BOOTDIR}
 install ${SYSLINUXDIR}/ldlinux.c32 ${BOOTDIR}
 install ${SYSLINUXDIR}/libcom32.c32 ${BOOTDIR}
 install ${SYSLINUXDIR}/libutil.c32 ${BOOTDIR}
-install boot/xen*gz ${BOOTDIR}/xen.gz
 install ${configdir}/isolinux.cfg ${BOOTDIR}
 install ${configdir}/boot.msg ${BOOTDIR}
 install ${configdir}/grub.conf ${BOOTDIR}
@@ -37,6 +36,7 @@ install boot/memtest* ${BOOTDIR}/memtest
 
 ## install kernels
 mkdir ${KERNELDIR}
+install boot/xen*gz ${KERNELDIR}/xen.gz
 <%
 sortedkernels = sorted(kernels, key=lambda k: LooseVersion(k['version']))
 latestkernel = sortedkernels[-1]
@@ -74,6 +74,7 @@ replace @PRODUCT@ '${product.name}'  ${BOOTDIR}/grub.conf ${BOOTDIR}/isolinux.cf
 replace @ROOT@ 'inst.stage2=hd:LABEL=${isolabel|udev}' ${BOOTDIR}/isolinux.cfg
 replace @EXTRAKERNELS@ '' ${BOOTDIR}/isolinux.cfg
 
+hardlink ${KERNELDIR}/xen.gz ${BOOTDIR}
 hardlink ${KERNELDIR}/vmlinuz ${BOOTDIR}
 hardlink ${KERNELDIR}/initrd.img ${BOOTDIR}
 %if basearch == 'x86_64':
