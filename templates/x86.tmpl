@@ -98,14 +98,49 @@ hardlink ${KERNELDIR}/initrd.img ${BOOTDIR}
     <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel, kver=latestkver"/>
 %endif
 
-## ## make boot.iso
-## runcmd mkisofs -o ${outroot}/images/boot.iso \
-##        -b ${BOOTDIR}/isolinux.bin -c ${BOOTDIR}/boot.cat \
-##        -boot-load-size 4 -boot-info-table -no-emul-boot \
-##        ${efiargs} -R -J -V '${isolabel}' -T -graft-points \
-##        ${BOOTDIR}=${outroot}/${BOOTDIR} \
-##        ${KERNELDIR}=${outroot}/${KERNELDIR} \
-##        ${LIVEDIR}=${outroot}/${LIVEDIR} \
-##        ${efigraft}
-## runcmd isohybrid ${efihybrid} ${outroot}/images/boot.iso
-## treeinfo images-${basearch} boot.iso images/boot.iso
+# Support for productmd format
+# https://release-engineering.github.io/productmd/treeinfo-1.0.html
+# https://pagure.io/pungi/c/682f959ee01afef47a6f097e99e31ce204dc04ce
+
+# Set/modify 'general' section
+<%
+import os
+import time
+
+if 'SOURCE_DATE_EPOCH' in os.environ:
+    timestamp = os.environ['SOURCE_DATE_EPOCH']
+else:
+    timestamp = str(time.time())
+
+timestamp = int(float(timestamp))
+
+images = ['xen', 'alt-' + shortkver, basearch]
+platforms = ','.join(images)
+%>
+treeinfo general variant ${product.name}
+treeinfo general timestamp ${timestamp}
+treeinfo general packagedir Packages
+treeinfo general repository .
+treeinfo general platforms ${platforms}
+
+# Add 'header' section
+treeinfo header version 1.0
+
+# Add 'release' section
+treeinfo release name ${product.name}
+treeinfo release short ${product.name}
+treeinfo release version ${product.version}
+
+# Add 'tree' section
+treeinfo tree arch ${basearch}
+treeinfo tree build_timestamp ${timestamp}
+treeinfo tree platforms ${platforms}
+treeinfo tree variants ${product.name}
+
+# Add 'variant-VARIANTNAME' section
+treeinfo variant-${product.name} id ${product.name}
+treeinfo variant-${product.name} name ${product.name}
+treeinfo variant-${product.name} packages Packages
+treeinfo variant-${product.name} repository .
+treeinfo variant-${product.name} type variant
+treeinfo variant-${product.name} uid ${product.name}
