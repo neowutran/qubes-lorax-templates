@@ -38,8 +38,8 @@ installpkg glibc-all-langpacks
 %if basearch == "x86_64":
     installpkg grub2-tools-efi
     installpkg efibootmgr
-    installpkg shim-x64 grub2-efi-x64-cdboot
-    installpkg shim-ia32 grub2-efi-ia32-cdboot
+    installpkg shim-x64 grub2-efi-x64-cdboot grub2-efi-x64-modules
+    installpkg shim-ia32 grub2-efi-ia32-cdboot grub2-efi-ia32-modules
 %endif
 %if basearch in ("i386", "x86_64"):
     installpkg biosdevname memtest86+ syslinux
@@ -177,12 +177,6 @@ installpkg gdisk hexedit sg3_utils
 
 ## satisfy libnotify's desktop-notification-daemon with the least crazy option
 installpkg notification-daemon
-
-## Docker enabled boot.iso
-# Not all arches currently have docker
-%if basearch not in ("ppc", "ppc64", "s390"):
-    installpkg docker-anaconda-addon
-%endif
 
 ## actually install all the requested packages
 run_pkg_transaction
