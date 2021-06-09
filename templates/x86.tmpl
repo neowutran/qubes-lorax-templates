@@ -40,6 +40,7 @@ install boot/xen*gz ${KERNELDIR}/xen.gz
 <%
 sortedkernels = sorted(kernels, key=lambda k: LooseVersion(k['version']))
 latestkernel = sortedkernels[-1]
+shortkvers = []
 %>
 
 mkdir ${EXTRAKERNELS}
@@ -51,6 +52,7 @@ mkdir ${EXTRAKERNELS}
     # Use short kernel version because of ISO9660 filename length limitation
     <%
     shortkver = kernel.version.replace('.pvops.qubes','').replace('.x86_64','')
+    shortkvers.append(shortkver)
     %>
     %if kernel.flavor:
         ## i386 PAE
@@ -114,7 +116,7 @@ else:
 
 timestamp = int(float(timestamp))
 
-images = ['xen', 'alt-' + shortkver, basearch]
+images = ['xen'] + ['alt-' + shortkver for shortkver in shortkvers] + [basearch]
 platforms = ','.join(images)
 %>
 treeinfo general variant ${product.name}
