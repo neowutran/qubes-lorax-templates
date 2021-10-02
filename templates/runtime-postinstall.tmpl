@@ -41,6 +41,8 @@ systemctl disable systemd-readahead-collect.service \
                   mdmonitor-takeover.service \
                   lvm2-monitor.service \
                   dnf-makecache.timer \
+                  sshd.service \
+                  sshd.socket \
                   NetworkManager.service
 ## These services can't be disabled normally (they're linked into place in
 ## /usr/lib/systemd rather than /etc/systemd), so we have to mask them.
