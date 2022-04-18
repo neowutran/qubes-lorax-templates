@@ -1,0 +1,4 @@
+host:
+  rpm:
+    spec:
+    - lorax-templates-qubes.spec
