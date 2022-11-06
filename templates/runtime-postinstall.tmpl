@@ -76,10 +76,9 @@ install ${configdir}/92-anaconda-loglevel-debug.conf etc/NetworkManager/conf.d
 #install ${configdir}/pam.sshd etc/pam.d/login
 #install ${configdir}/pam.sshd etc/pam.d/remote
 
-## set up inst.rngd support
-install ${configdir}/inst.rngd.service etc/systemd/system/inst.rngd.service
+## Start rngd
 mkdir etc/systemd/system/basic.target.wants/
-symlink /etc/systemd/system/inst.rngd.service etc/systemd/system/basic.target.wants/inst.rngd.service
+symlink /lib/systemd/system/rngd.service etc/systemd/system/basic.target.wants/rngd.service
 
 ## set up "install" user account
 append etc/passwd "install:x:0:0:root:/root:/usr/libexec/anaconda/run-anaconda"
