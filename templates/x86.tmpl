@@ -82,12 +82,6 @@ hardlink ${KERNELDIR}/initrd.img ${BOOTDIR}
 
 ## WHeeeeeeee, EFI.
 ## We could remove the basearch restriction someday..
-<% efiarch='X64' %>
-<%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel"/>
-
-
-
-
 <% efiargs=""; efigraft=""; efihybrid="" %>
 %if exists("boot/efi/EFI/*/gcdx64.efi") and basearch != 'i386':
     <%
@@ -95,12 +89,32 @@ hardlink ${KERNELDIR}/initrd.img ${BOOTDIR}
     efigraft="EFI/BOOT={0}/EFI/BOOT".format(outroot)
     images = ["images/efiboot.img"]
     for img in images:
-        efiargs += " --efi-boot {0} {1}".format(img, hybrid)
+        efiargs += " -efi-boot {0} -no-emul-boot".format(img)
         efigraft += " {0}={1}/{0}".format(img,outroot)
     efihybrid = "--uefi"
     %>
     <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel, kver=latestkver"/>
 %endif
+
+
+
+# <% efiarch='X64' %>
+# <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel, kver=latestkver"/>
+
+
+#<% efiargs=""; efigraft=""; efihybrid="" %>
+#%if exists("boot/efi/EFI/*/gcdx64.efi") and basearch != 'i386':
+#    <%
+#    efiarch = 'X64' if basearch=='x86_64' else 'IA32'
+#    efigraft="EFI/BOOT={0}/EFI/BOOT".format(outroot)
+#    images = ["images/efiboot.img"]
+#    for img in images:
+#        efiargs += " --efi-boot {0} {1}".format(img, hybrid)
+#        efigraft += " {0}={1}/{0}".format(img,outroot)
+#    efihybrid = "--uefi"
+#    %>
+#    <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel, kver=latestkver"/>
+#%endif
 
 # Support for productmd format
 # https://release-engineering.github.io/productmd/treeinfo-1.0.html
