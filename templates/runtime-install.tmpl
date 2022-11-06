@@ -1,35 +1,56 @@
 ## lorax template file: populate the ramdisk (runtime image)
 <%page args="basearch, product"/>
+<%
+# This version of grub2 moves the font directory and is needed to keep the efi template from failing.
+GRUB2VER="1:2.06-3"
+%>
 
 ## anaconda package
-installpkg anaconda anaconda-widgets kexec-tools-anaconda-addon anaconda-install-env-deps
+installpkg anaconda anaconda-widgets kexec-tools-anaconda-addon anaconda-install-img-deps
 installpkg qubes-artwork-anaconda
 ## Other available payloads
 installpkg dnf
-installpkg dnf-plugins-core
 installpkg rpm-ostree ostree
 ## speed up compression on multicore systems
 installpkg pigz
 
 ## kernel and firmware
-installpkg kernel
+## NOTE: Without explicitly including kernel-modules-extra dnf will choose kernel-debuginfo-*
+##       to satify a gfs2-utils kmod requirement
+installpkg kernel kernel-modules kernel-modules-extra
 installpkg grubby
 %if basearch != "s390x":
-    installpkg linux-firmware
+    ## skip the firmware for sound, video, and scanners, none of which will
+    ## do much good for the installer. Also skip uhd-firmware which is not
+    ## even a kernel firmware package. liquidio and netronome firmwares are
+    ## for enterprise switch devices, netinst deployment does not work on
+    ## these so there is no point shipping them - see
+    ## https://bugzilla.redhat.com/show_bug.cgi?id=2011615
+    installpkg --optional *-firmware --except alsa* --except midisport-firmware \
+                           --except crystalhd-firmware --except ivtv-firmware \
+                           --except cx18-firmware --except iscan-firmware \
+                           --except uhd-firmware --except lulzbot-marlin-firmware \
+                           --except gnome-firmware --except sigrok-firmware \
+                           --except liquidio-firmware --except netronome-firmware \
+                           --except mrvlprestera-firmware --except mlxsw_spectrum-firmware
+    installpkg b43-openfwwf
 %endif
+
 installpkg xen-hypervisor
+
 ## install all of the glibc langpacks since otherwise we get no locales
 installpkg glibc-all-langpacks
 
 ## arch-specific packages (bootloaders etc.)
 %if basearch == "aarch64":
     installpkg efibootmgr
-    installpkg grub2-efi-aa64-cdboot shim-aa64
+    installpkg grub2-efi-aa64-cdboot>=${GRUB2VER}
+    installpkg shim-aa64
     installpkg uboot-tools
 %endif
 %if basearch in ("arm", "armhfp"):
     installpkg efibootmgr
-    installpkg grub2-efi-arm-cdboot
+    installpkg grub2-efi-arm-cdboot>=${GRUB2VER}
     installpkg grubby-deprecated
     installpkg kernel-lpae
     installpkg uboot-tools
@@ -38,19 +59,23 @@ installpkg glibc-all-langpacks
     installpkg gpart
 %endif
 %if basearch == "x86_64":
-    installpkg grub2-tools-efi
+    installpkg grub2-tools-efi>=${GRUB2VER}
     installpkg efibootmgr
-    installpkg shim-x64 grub2-efi-x64-cdboot grub2-efi-x64-modules
-    installpkg shim-ia32 grub2-efi-ia32-cdboot grub2-efi-ia32-modules
+    installpkg shim-x64
+    installpkg grub2-efi-x64-cdboot>=${GRUB2VER}
+    installpkg shim-ia32
+    installpkg grub2-efi-ia32-cdboot>=${GRUB2VER}
 %endif
 %if basearch in ("i386", "x86_64"):
-    installpkg biosdevname memtest86+ syslinux
-    installpkg grub2-tools grub2-tools-minimal grub2-tools-extra
+    installpkg biosdevname
+    installpkg grub2-tools>=${GRUB2VER} grub2-tools-minimal>=${GRUB2VER}
+    installpkg grub2-tools-extra>=${GRUB2VER}
+    installpkg grub2-pc-modules>=${GRUB2VER}
 %endif
-%if basearch in ("ppc", "ppc64", "ppc64le"):
-    installpkg fbset hfsutils powerpc-utils lsvpd ppc64-diag
-    installpkg grub2-tools grub2-tools-minimal grub2-tools-extra
-    installpkg grub2-${basearch}
+%if basearch == "ppc64le":
+    installpkg powerpc-utils lsvpd ppc64-diag
+    installpkg grub2-tools>=${GRUB2VER} grub2-tools-minimal>=${GRUB2VER}
+    installpkg grub2-tools-extra>=${GRUB2VER} grub2-${basearch}>=${GRUB2VER}
 %endif
 %if basearch == "s390x":
     installpkg lsscsi s390utils-base s390utils-cmsfs-fuse s390utils-hmcdrvfs
@@ -81,19 +106,8 @@ installpkg tar xz curl bzip2
 installpkg systemd-sysv systemd-units
 installpkg rsyslog
 
-## xorg/GUI packages
-%if basearch != "s390x":
-installpkg xorg-x11-drivers xorg-x11-server-Xorg
-%endif
-#installpkg xorg-x11-server-utils xorg-x11-xauth
-installpkg xrandr xrdb xorg-x11-xauth
-installpkg mesa-dri-drivers
-installpkg dbus-x11 metacity gsettings-desktop-schemas
-installpkg nm-connection-editor
-installpkg librsvg2
-
 ## filesystem tools
-installpkg btrfs-progs jfsutils xfsprogs reiserfs-utils gfs2-utils ntfs-3g ntfsprogs
+installpkg btrfs-progs jfsutils xfsprogs ntfs-3g ntfsprogs
 installpkg system-storage-manager
 installpkg device-mapper-persistent-data
 installpkg xfsdump
@@ -109,15 +123,17 @@ installpkg libblockdev-lvm-dbus
 installpkg volume_key
 installpkg nss-tools
 
+## blivet-gui-runtime requires PolicyKit-authentication-agent, if we
+## don't tell dnf what to pick it picks lxpolkit, which drags in gtk2
+installpkg polkit-gnome
+
 ## SELinux support
 installpkg selinux-policy-targeted audit
 
 ## network tools/servers
 installpkg ethtool openssh-server nfs-utils openssh-clients
 installpkg tigervnc-server-minimal
-%if basearch != "s390x":
 installpkg tigervnc-server-module
-%endif
 installpkg net-tools
 installpkg bridge-utils
 installpkg nmap-ncat
@@ -134,40 +150,39 @@ installpkg pcmciautils
     installpkg libmlx4 rdma-core
 %endif
 installpkg rng-tools
+%if basearch in ("i386", "x86_64", "aarch64"):
+installpkg dmidecode
+%endif
 
 installpkg qubes-release
 
+
 ## fonts & themes
+installpkg abattis-cantarell-vf-fonts
 installpkg bitmap-fangsongti-fonts
-installpkg dejavu-sans-fonts dejavu-sans-mono-fonts
-installpkg kacst-farsi-fonts
-installpkg kacst-qurn-fonts
-installpkg lklug-fonts
+installpkg google-noto-sans-vf-fonts google-noto-sans-mono-vf-fonts
+installpkg google-noto-sans-arabic-vf-fonts
+installpkg google-noto-sans-cjk-ttc-fonts
+installpkg google-noto-sans-ethiopic-vf-fonts google-noto-sans-georgian-vf-fonts
+installpkg google-noto-sans-gurmukhi-vf-fonts google-noto-sans-hebrew-vf-fonts
+installpkg google-noto-sans-sinhala-vf-fonts
+installpkg jomolhari-fonts
+installpkg khmer-os-system-fonts
 installpkg lohit-assamese-fonts
 installpkg lohit-bengali-fonts
 installpkg lohit-devanagari-fonts
-installpkg lohit-gu*-fonts
+installpkg lohit-gujarati-fonts
 installpkg lohit-kannada-fonts
+installpkg lohit-marathi-fonts
 installpkg lohit-odia-fonts
 installpkg lohit-tamil-fonts
 installpkg lohit-telugu-fonts
-installpkg madan-fonts
-installpkg nhn-nanum-gothic-fonts
-installpkg smc-meera-fonts
-installpkg thai-scalable-waree-fonts
-installpkg vlgothic-fonts
-installpkg wqy-microhei-fonts
-installpkg sil-abyssinica-fonts
-installpkg xorg-x11-fonts-misc
-installpkg gnome-icon-theme-legacy
-installpkg aajohan-comfortaa-fonts
-installpkg abattis-cantarell-fonts
-installpkg sil-scheherazade-fonts
-installpkg jomolhari-fonts
-installpkg khmeros-base-fonts
+installpkg paktype-naskh-basic-fonts
 installpkg sil-padauk-fonts
-installpkg google-noto-sans-cjk-ttc-fonts
+installpkg rit-meera-new-fonts
+installpkg thai-scalable-waree-fonts
 installpkg qubes-artwork
+
 
 ## debugging/bug reporting tools
 installpkg gdb-gdbserver
@@ -176,13 +191,11 @@ installpkg fpaste
 installpkg python3-pyatspi
 
 ## extra tools not required by anaconda
-installpkg vim-minimal strace lsof dump xz less eject
+installpkg nano nano-default-editor
+installpkg vim-minimal strace lsof dump xz less
 installpkg wget rsync bind-utils ftp mtr vconfig
-installpkg icfg spice-vdagent
+installpkg spice-vdagent
 installpkg gdisk hexedit sg3_utils
-
-## satisfy libnotify's desktop-notification-daemon with the least crazy option
-installpkg notification-daemon
 
 ## actually install all the requested packages
 run_pkg_transaction
