@@ -1,32 +1,31 @@
-<%page args="kernels, runtime_img, basearch, inroot, outroot, product, isolabel, extra_boot_args"/>
+<%page args="kernels, runtime_img, basearch, outroot, product, isolabel"/>
 <%
 configdir="tmp/config_files/x86"
+SYSLINUXDIR="usr/share/syslinux"
 PXEBOOTDIR="images/pxeboot"
+BOOTDIR="isolinux"
 KERNELDIR=PXEBOOTDIR
-GRUB2DIR="boot/grub2"
 LIVEDIR="LiveOS"
-LORAXDIR="usr/share/lorax/"
-
-## Don't allow spaces or escape characters in the iso label
-def valid_label(ch):
-    return ch.isalnum() or ch == '_'
-
-isolabel = ''.join(ch if valid_label(ch) else '-' for ch in isolabel)
-
-import os
-from os.path import basename
-from pylorax.sysutils import joinpaths
-
-# Test the runtime_img, if it is > 4GiB we need to set -iso-level to 3
-if os.stat(joinpaths(inroot, runtime_img)).st_size >= 4*1024**3:
-    isoargs = "-iso-level 3"
-else:
-    isoargs = ""
 %>
 
 mkdir ${LIVEDIR}
 install ${runtime_img} ${LIVEDIR}/squashfs.img
 treeinfo stage2 mainimage ${LIVEDIR}/squashfs.img
+
+## install bootloader and config files
+mkdir ${BOOTDIR}
+install ${SYSLINUXDIR}/isolinux.bin ${BOOTDIR}
+install ${SYSLINUXDIR}/vesamenu.c32 ${BOOTDIR}
+install ${configdir}/isolinux.cfg ${BOOTDIR}
+install ${configdir}/boot.msg ${BOOTDIR}
+install ${configdir}/grub.conf ${BOOTDIR}
+install usr/share/anaconda/boot/syslinux-splash.png ${BOOTDIR}/splash.png
+install boot/memtest* ${BOOTDIR}/memtest
+
+## configure bootloader
+replace @VERSION@ ${product.version} ${BOOTDIR}/grub.conf ${BOOTDIR}/isolinux.cfg ${BOOTDIR}/*.msg
+replace @PRODUCT@ '${product.name}'  ${BOOTDIR}/grub.conf ${BOOTDIR}/isolinux.cfg ${BOOTDIR}/*.msg
+replace @ROOT@ 'root=live:CDLABEL=${isolabel|udev}' ${BOOTDIR}/isolinux.cfg
 
 ## install kernels
 mkdir ${KERNELDIR}
@@ -40,23 +39,14 @@ mkdir ${KERNELDIR}
     %endif
 %endfor
 
+hardlink ${KERNELDIR}/vmlinuz ${BOOTDIR}
+hardlink ${KERNELDIR}/initrd.img ${BOOTDIR}
 %if basearch == 'x86_64':
     treeinfo images-xen kernel ${KERNELDIR}/vmlinuz
     treeinfo images-xen initrd ${KERNELDIR}/initrd.img
 %endif
 
-## configure grub2 config file
-mkdir ${GRUB2DIR}
-install ${configdir}/grub2-bios.cfg ${GRUB2DIR}/grub.cfg
-replace @VERSION@ ${product.version} ${GRUB2DIR}/grub.cfg
-replace @PRODUCT@ '${product.name}'  ${GRUB2DIR}/grub.cfg
-replace @KERNELPATH@ /${KERNELDIR}/vmlinuz ${GRUB2DIR}/grub.cfg
-replace @INITRDPATH@ /${KERNELDIR}/initrd.img ${GRUB2DIR}/grub.cfg
-replace @ISOLABEL@ '${isolabel}' ${GRUB2DIR}/grub.cfg
-replace @ROOT@ 'root=live:CDLABEL=${isolabel|udev}' ${GRUB2DIR}/grub.cfg
-replace @EXTRA@ '${extra_boot_args}' ${GRUB2DIR}/grub.cfg
-
-
+## WHeeeeeeee, EFI.
 ## We could remove the basearch restriction someday..
 <% efiargs=""; efigraft=""; efihybrid="" %>
 %if exists("boot/efi/EFI/fedora/gcdx64.efi") and basearch != 'i386':
@@ -67,65 +57,21 @@ replace @EXTRA@ '${extra_boot_args}' ${GRUB2DIR}/grub.cfg
     if domacboot:
         images.append("images/macboot.img")
     for img in images:
-        efiargs += " --efi-boot {0} {1}".format(img, hybrid)
+        efiargs += " -eltorito-alt-boot -e {0} -no-emul-boot".format(img)
         efigraft += " {0}={1}/{0}".format(img,outroot)
     efihybrid = "--uefi --mac" if domacboot else "--uefi"
     %>
     <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel"/>
 %endif
 
-# Create optional product.img and updates.img
-<% filegraft=""; images=["product", "updates"]; compressargs=""; %>
-%if basearch == 'i386':
-    # Limit the amount of memory xz uses on i386
-    <% compressargs="--xz -9 --memlimit-compress=3700MiB" %>
-%endif
-%for img in images:
-    %if exists("%s/%s/" % (LORAXDIR, img)):
-        installimg ${compressargs} ${LORAXDIR}/${img}/ images/${img}.img
-        treeinfo images-${basearch} ${img}.img images/${img}.img
-        <% filegraft += " images/{0}.img={1}/images/{0}.img".format(img, outroot) %>
-    %endif
-%endfor
-
-# Add the license files
-%for f in glob("usr/share/licenses/*-release-common/*"):
-    install ${f} ${f|basename}
-    <% filegraft += " {0}={1}/{0}".format(basename(f), outroot) %>
-%endfor
-
-# Add the livecd-iso-to-disk script if installed
-<% f = "usr/bin/livecd-iso-to-disk" %>
-%if exists(f):
-    install ${f} ${LIVEDIR}/${f|basename}
-%endif
-
-## Make images/eltoritio.img
-runcmd grub2-mkimage -O i386-pc-eltorito -d ${inroot}/usr/lib/grub/i386-pc \
-       -o ${outroot}/images/eltorito.img \
-       -p /${GRUB2DIR} \
-       iso9660 biosdisk
-treeinfo images-${basearch} eltorito.img images/eltorito.img
-
 ## make boot.iso
-runcmd xorrisofs ${isoargs} -o ${outroot}/images/boot.iso \
-       -R -J -V '${isolabel}' \
-       --grub2-mbr ${inroot}/usr/lib/grub/i386-pc/boot_hybrid.img \
-       -partition_offset 16 \
-       -appended_part_as_gpt \
-       -append_partition 2 C12A7328-F81F-11D2-BA4B-00A0C93EC93B ${outroot}/images/efiboot.img \
-       -iso_mbr_part_type EBD0A0A2-B9E5-4433-87C0-68B6B72699C7 \
-       -c boot.cat --boot-catalog-hide \
-       -b images/eltorito.img \
-       -no-emul-boot -boot-load-size 4 -boot-info-table --grub2-boot-info \
-       -eltorito-alt-boot \
-       -e '--interval:appended_partition_2:all::' -no-emul-boot \
-       -graft-points \
+runcmd mkisofs -o ${outroot}/images/boot.iso \
+       -b ${BOOTDIR}/isolinux.bin -c ${BOOTDIR}/boot.cat \
+       -boot-load-size 4 -boot-info-table -no-emul-boot \
+       ${efiargs} -R -J -V '${isolabel}' -T -graft-points \
+       ${BOOTDIR}=${outroot}/${BOOTDIR} \
        ${KERNELDIR}=${outroot}/${KERNELDIR} \
        ${LIVEDIR}=${outroot}/${LIVEDIR} \
-       ${filegraft} \
-       ${GRUB2DIR}=${outroot}/${GRUB2DIR} \
-       ${GRUB2DIR}/i386-pc=${inroot}/usr/lib/grub/i386-pc \
-       images/eltorito.img=${outroot}/images/eltorito.img \
-       EFI/BOOT=${outroot}/EFI/BOOT
+       ${efigraft}
+runcmd isohybrid ${efihybrid} ${outroot}/images/boot.iso
 treeinfo images-${basearch} boot.iso images/boot.iso

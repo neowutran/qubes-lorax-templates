@@ -1,7 +1,7 @@
 <%page args="kernels, runtime_img, basearch, outroot, product, isolabel"/>
 <%
-GRUB2DIR="boot/grub2"
 configdir="tmp/config_files/x86"
+SYSLINUXDIR="usr/share/syslinux"
 PXEBOOTDIR="images/pxeboot"
 BOOTDIR="isolinux"
 KERNELDIR=PXEBOOTDIR
@@ -20,15 +20,19 @@ mkdir ${LIVEDIR}
 install ${runtime_img} ${LIVEDIR}/squashfs.img
 treeinfo stage2 mainimage ${LIVEDIR}/squashfs.img
 
-## configure grub2 config file
-mkdir ${GRUB2DIR}
-install ${configdir}/grub2-bios.cfg ${GRUB2DIR}/grub.cfg
-replace @VERSION@ ${product.version} ${GRUB2DIR}/grub.cfg
-replace @PRODUCT@ '${product.name}'  ${GRUB2DIR}/grub.cfg
-replace @KERNELPATH@ /${KERNELDIR}/vmlinuz ${GRUB2DIR}/grub.cfg
-replace @INITRDPATH@ /${KERNELDIR}/initrd.img ${GRUB2DIR}/grub.cfg
-replace @ISOLABEL@ '${isolabel}' ${GRUB2DIR}/grub.cfg
-replace @ROOT@ 'inst.stage2=hd:LABEL=${isolabel|udev}' ${GRUB2DIR}/grub.cfg
+## install bootloader and config files
+mkdir ${BOOTDIR}
+install ${SYSLINUXDIR}/isolinux.bin ${BOOTDIR}
+install ${SYSLINUXDIR}/vesamenu.c32 ${BOOTDIR}
+install ${SYSLINUXDIR}/mboot.c32 ${BOOTDIR}
+install ${SYSLINUXDIR}/ldlinux.c32 ${BOOTDIR}
+install ${SYSLINUXDIR}/libcom32.c32 ${BOOTDIR}
+install ${SYSLINUXDIR}/libutil.c32 ${BOOTDIR}
+install ${configdir}/isolinux.cfg ${BOOTDIR}
+install ${configdir}/boot.msg ${BOOTDIR}
+install ${configdir}/grub.conf ${BOOTDIR}
+install usr/share/anaconda/boot/syslinux-splash.png ${BOOTDIR}/splash.png
+install boot/memtest* ${BOOTDIR}/memtest
 
 ## install kernels
 mkdir ${KERNELDIR}
@@ -89,13 +93,12 @@ hardlink ${KERNELDIR}/initrd.img ${BOOTDIR}
     efigraft="EFI/BOOT={0}/EFI/BOOT".format(outroot)
     images = ["images/efiboot.img"]
     for img in images:
-        efiargs += " -efi-boot {0} -no-emul-boot".format(img)
+        efiargs += " -eltorito-alt-boot -e {0} -no-emul-boot".format(img)
         efigraft += " {0}={1}/{0}".format(img,outroot)
     efihybrid = "--uefi"
     %>
     <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel, kver=latestkver"/>
 %endif
-
 
 # Support for productmd format
 # https://release-engineering.github.io/productmd/treeinfo-1.0.html
