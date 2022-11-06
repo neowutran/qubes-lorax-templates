@@ -1,32 +1,38 @@
-<%page args="kernels, runtime_img, runtime_base, basearch, inroot, outroot, product, isolabel"/>
+<%page args="kernels, runtime_img, basearch, outroot, product, isolabel"/>
 <%
 configdir="tmp/config_files/x86"
+SYSLINUXDIR="usr/share/syslinux"
 PXEBOOTDIR="images/pxeboot"
-STAGE2IMG="images/install.img"
-GRUB2DIR="boot/grub2"
+BOOTDIR="isolinux"
 KERNELDIR=PXEBOOTDIR
-LORAXDIR="usr/share/lorax/"
+LIVEDIR="LiveOS"
+EXTRAKERNELS="extrakernels"
+from distutils.version import LooseVersion
 
 ## Don't allow spaces or escape characters in the iso label
 def valid_label(ch):
-    return ch.isalnum() or ch == '_'
+    return ch.isalnum() or ch in ('_', '.')
 
 isolabel = ''.join(ch if valid_label(ch) else '-' for ch in isolabel)
-
-import os
-from os.path import basename
-from pylorax.sysutils import joinpaths
-
-# Test the runtime_img, if it is > 4GiB we need to set -iso-level to 3
-if os.stat(joinpaths(inroot, runtime_img)).st_size >= 4*1024**3:
-    isoargs = "-iso-level 3"
-else:
-    isoargs = ""
 %>
 
-mkdir images
-install ${runtime_img} ${STAGE2IMG}
-treeinfo stage2 mainimage images/${runtime_base}
+mkdir ${LIVEDIR}
+install ${runtime_img} ${LIVEDIR}/squashfs.img
+treeinfo stage2 mainimage ${LIVEDIR}/squashfs.img
+
+## install bootloader and config files
+mkdir ${BOOTDIR}
+install ${SYSLINUXDIR}/isolinux.bin ${BOOTDIR}
+install ${SYSLINUXDIR}/vesamenu.c32 ${BOOTDIR}
+install ${SYSLINUXDIR}/mboot.c32 ${BOOTDIR}
+install ${SYSLINUXDIR}/ldlinux.c32 ${BOOTDIR}
+install ${SYSLINUXDIR}/libcom32.c32 ${BOOTDIR}
+install ${SYSLINUXDIR}/libutil.c32 ${BOOTDIR}
+install ${configdir}/isolinux.cfg ${BOOTDIR}
+install ${configdir}/boot.msg ${BOOTDIR}
+install ${configdir}/grub.conf ${BOOTDIR}
+install usr/share/anaconda/boot/syslinux-splash.png ${BOOTDIR}/splash.png
+install boot/memtest* ${BOOTDIR}/memtest
 
 ## install kernels
 mkdir ${KERNELDIR}
@@ -78,30 +84,21 @@ hardlink ${KERNELDIR}/initrd.img ${BOOTDIR}
     treeinfo images-xen initrd ${KERNELDIR}/initrd.img
 %endif
 
-
-## configure grub2 config file
-mkdir ${GRUB2DIR}
-install ${configdir}/grub2-bios.cfg ${GRUB2DIR}/grub.cfg
-replace @VERSION@ ${product.version} ${GRUB2DIR}/grub.cfg
-replace @PRODUCT@ '${product.name}'  ${GRUB2DIR}/grub.cfg
-replace @KERNELPATH@ /${KERNELDIR}/vmlinuz ${GRUB2DIR}/grub.cfg
-replace @INITRDPATH@ /${KERNELDIR}/initrd.img ${GRUB2DIR}/grub.cfg
-replace @ISOLABEL@ '${isolabel}' ${GRUB2DIR}/grub.cfg
-replace @ROOT@ 'inst.stage2=hd:LABEL=${isolabel|udev}' ${GRUB2DIR}/grub.cfg
-
-
 ## WHeeeeeeee, EFI.
-<% efiarch32=None; efiarch64=None %>
-%if exists("boot/efi/EFI/*/gcdia32.efi"):
-    <% efiarch32 = 'IA32' %>
+## We could remove the basearch restriction someday..
+<% efiargs=""; efigraft=""; efihybrid="" %>
+%if exists("boot/efi/EFI/*/gcdx64.efi") and basearch != 'i386':
+    <%
+    efiarch = 'X64' if basearch=='x86_64' else 'IA32'
+    efigraft="EFI/BOOT={0}/EFI/BOOT".format(outroot)
+    images = ["images/efiboot.img"]
+    for img in images:
+        efiargs += " -eltorito-alt-boot -e {0} -no-emul-boot".format(img)
+        efigraft += " {0}={1}/{0}".format(img,outroot)
+    efihybrid = "--uefi"
+    %>
+    <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel, kver=latestkver"/>
 %endif
-%if exists("boot/efi/EFI/*/gcdx64.efi"):
-    <% efiarch64 = 'X64' %>
-%endif
-%if (efiarch32 or efiarch64) and basearch != 'i386':
-    <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch32=efiarch32, efiarch64=efiarch64, isolabel=isolabel"/>
-%endif
-
 
 # Support for productmd format
 # https://release-engineering.github.io/productmd/treeinfo-1.0.html
