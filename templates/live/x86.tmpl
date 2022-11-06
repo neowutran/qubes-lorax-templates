@@ -57,16 +57,21 @@ replace @ROOT@ 'root=live:CDLABEL=${isolabel|udev}' ${GRUB2DIR}/grub.cfg
 replace @EXTRA@ '${extra_boot_args}' ${GRUB2DIR}/grub.cfg
 
 
-## WHeeeeeeee, EFI.
-<% efiargs=""; efigraft=""; efiarch32=None; efiarch64=None %>
-%if exists("boot/efi/EFI/*/gcdia32.efi"):
-    <% efiarch32 = 'IA32' %>
-%endif
-%if exists("boot/efi/EFI/*/gcdx64.efi"):
-    <% efiarch64 = 'X64' %>
-%endif
-%if (efiarch32 or efiarch64) and basearch != 'i386':
-    <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch32=efiarch32, efiarch64=efiarch64, isolabel=isolabel, extra_boot_args=extra_boot_args"/>
+## We could remove the basearch restriction someday..
+<% efiargs=""; efigraft=""; efihybrid="" %>
+%if exists("boot/efi/EFI/fedora/gcdx64.efi") and basearch != 'i386':
+    <%
+    efiarch = 'X64' if basearch=='x86_64' else 'IA32'
+    efigraft="EFI/BOOT={0}/EFI/BOOT".format(outroot)
+    images = ["images/efiboot.img"]
+    if domacboot:
+        images.append("images/macboot.img")
+    for img in images:
+        efiargs += " -eltorito-alt-boot -e {0} -no-emul-boot".format(img)
+        efigraft += " {0}={1}/{0}".format(img,outroot)
+    efihybrid = "--uefi --mac" if domacboot else "--uefi"
+    %>
+    <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel"/>
 %endif
 
 # Create optional product.img and updates.img

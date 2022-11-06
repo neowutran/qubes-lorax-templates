@@ -49,8 +49,7 @@ mkdir ${KERNELDIR}
 <% efiargs=""; efigraft="" %>
 %if exists("boot/efi/EFI/*/gcdaa64.efi"):
     <%
-    efiarch32 = ARM
-    efiarch64 = None
+    efiarch = None
     efigraft="EFI/BOOT={0}/EFI/BOOT".format(outroot)
     images = ["images/efiboot.img"]
     %>
@@ -61,7 +60,7 @@ mkdir ${KERNELDIR}
         %>
         treeinfo images-${basearch} ${img|basename} ${img}
     %endfor
-    <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch32=efiarch32, efiarch64=efiarch64, isolabel=isolabel"/>
+    <%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel"/>
 %endif
 
 # add platform to treeinfo for Beaker support

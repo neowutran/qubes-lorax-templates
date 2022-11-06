@@ -1,4 +1,4 @@
-<%page args="configdir, KERNELDIR, efiarch32, efiarch64, isolabel"/>
+<%page args="configdir, KERNELDIR, efiarch, isolabel"/>
 <%
 EFIARCH_LOWER=efiarch.lower()
 EFIBOOTDIR="EFI/BOOT"
@@ -68,9 +68,6 @@ ${make_efiboot("images/efiboot.img")}
         replace @ROOT@ inst.stage2=hd:LABEL=ANACONDA ${eficonf}
     %else:
         replace @ROOT@ 'inst.stage2=hd:LABEL=${isolabel|udev}' ${eficonf}
-    %endif
-    %if efiarch32 == 'IA32':
-        copy ${eficonf} ${EFIBOOTDIR}/BOOT.conf
     %endif
     runcmd mkefiboot ${args} ${outroot}/${EFIBOOTDIR} ${outroot}/${img}
     %if include_kernel:
