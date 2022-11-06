@@ -82,6 +82,12 @@ hardlink ${KERNELDIR}/initrd.img ${BOOTDIR}
 
 ## WHeeeeeeee, EFI.
 ## We could remove the basearch restriction someday..
+<% efiarch='X64' %>
+<%include file="efi.tmpl" args="configdir=configdir, KERNELDIR=KERNELDIR, efiarch=efiarch, isolabel=isolabel"/>
+
+
+
+
 <% efiargs=""; efigraft=""; efihybrid="" %>
 %if exists("boot/efi/EFI/*/gcdx64.efi") and basearch != 'i386':
     <%
