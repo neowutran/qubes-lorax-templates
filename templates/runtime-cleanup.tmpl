@@ -4,6 +4,9 @@
 ## remove the sources
 remove usr/share/i18n
 
+## remove stuff depending on perl
+removefrom xen-runtime /usr/bin/xencov_split
+
 ## not required packages installed as dependencies
 ## perl is needed on s390x
 ## perl needed for powerpc-utils
@@ -111,21 +114,13 @@ removefrom e2fsprogs /usr/share/locale/*
 removefrom xfsprogs /usr/share/locale/* /usr/share/doc/* /usr/share/man/*
 removefrom xfsdump --allbut /usr/sbin/*
 
-## remove stuff depending on perl
-removefrom xen-runtime /usr/bin/xencov_split
-
-
 ## other package specific removals
 removefrom gsettings-desktop-schemas /usr/share/locale/*
 removefrom NetworkManager-libnm /usr/share/locale/*/NetworkManager.mo
 removefrom nm-connection-editor /usr/share/applications/*
 removefrom atk /usr/share/locale/*
-removefrom audit /etc/* /usr/sbin/auditctl /usr/sbin/aureport
-removefrom audit /usr/sbin/ausearch /usr/sbin/autrace /usr/bin/*
-removefrom audit-libs /etc/* /usr/${libdir}/libauparse*
 removefrom bash /etc/* /usr/bin/bashbug* /usr/share/*
 removefrom bind-utils /usr/bin/host /usr/bin/nsupdate
-removefrom bitmap-fangsongti-fonts /usr/share/fonts/*
 removefrom ca-certificates /etc/pki/java/*
 removefrom ca-certificates /etc/pki/tls/certs/ca-bundle.trust.crt
 removefrom coreutils /usr/bin/link /usr/bin/nice /usr/bin/unlink

@@ -30,7 +30,8 @@ symlink /lib/systemd/system/tmp.mount etc/systemd/system/local-fs.target.wants/t
 systemctl disable systemd-readahead-collect.service \
                   systemd-readahead-replay.service \
                   lvm2-monitor.service \
-                  dnf-makecache.timer
+                  dnf-makecache.timer \
+                  sshd.socket
 ## These services can't be disabled normally (they're linked into place in
 ## /usr/lib/systemd rather than /etc/systemd), so we have to mask them.
 systemctl mask fedora-configure.service fedora-loadmodules.service \
@@ -73,12 +74,13 @@ install ${configdir}/92-anaconda-loglevel-debug.conf etc/NetworkManager/conf.d
 ## set up sshd
 #install ${configdir}/sshd_config.anaconda etc/ssh
 #install ${configdir}/pam.sshd etc/pam.d/sshd
-#install ${configdir}/pam.sshd etc/pam.d/login
+"install ${configdir}/pam.sshd etc/pam.d/login
 #install ${configdir}/pam.sshd etc/pam.d/remote
 
-## Start rngd
+## set up inst.rngd support
+install ${configdir}/inst.rngd.service etc/systemd/system/inst.rngd.service
 mkdir etc/systemd/system/basic.target.wants/
-symlink /lib/systemd/system/rngd.service etc/systemd/system/basic.target.wants/rngd.service
+symlink /etc/systemd/system/inst.rngd.service etc/systemd/system/basic.target.wants/inst.rngd.service
 
 ## set up "install" user account
 append etc/passwd "install:x:0:0:root:/root:/usr/libexec/anaconda/run-anaconda"
@@ -90,7 +92,6 @@ replace "root:\*:" "root::" etc/shadow
 install ${configdir}/org.gtk.Settings.Debug.gschema.override usr/share/glib-2.0/schemas
 runcmd chroot ${root} glib-compile-schemas /usr/share/glib-2.0/schemas
 
-move usr/libexec/anaconda/auditd sbin
 
 ## for compatibility with Ancient Anaconda Traditions
 symlink lib/modules /modules
