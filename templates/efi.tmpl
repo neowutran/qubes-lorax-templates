@@ -37,7 +37,7 @@ install boot/efi/EFI/qubes/BOOT${efiarch}.EFI ${EFIBOOTDIR}/BOOT${efiarch}.EFI
 ${make_efiboot("images/efiboot.img", include_kernel=False)}
 
 ## place fonts on ISO9660, but not in efiboot.img to save space
-## install boot/efi/EFI/*/fonts/unicode.pf2 ${EFIBOOTDIR}/fonts/
+install boot/efi/EFI/*/fonts/unicode.pf2 ${EFIBOOTDIR}/fonts/
 
 ## This is kinda gross, but then... so's EFI.
 <%def name="make_efiboot(img, include_kernel=False, disk=False, imgtype='default')">
