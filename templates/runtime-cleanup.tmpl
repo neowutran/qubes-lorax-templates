@@ -311,9 +311,9 @@ removefrom yelp /usr/share/yelp/mathjax*
 %endif
 
 ## cleanup /boot/ leaving vmlinuz, and .*hmac files
-runcmd chroot ${root} find /boot \! -name "vmlinuz*" \
-                            -and \! -name ".vmlinuz*" \
-                            -and \! -name boot -delete
+#runcmd chroot ${root} find /boot \! -name "vmlinuz*" \
+#                            -and \! -name ".vmlinuz*" \
+#                            -and \! -name boot -delete
 
 ## remove any broken links in /etc or /usr
 ## (broken systemd service links lead to confusing noise at boot)
